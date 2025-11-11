@@ -1,10 +1,15 @@
+// src/middleware/AuthMiddleware.ts
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = 'GgBw8rKs+Q0geW0ZWO/dAWavdRWYHt5jqEddmpPf1+3pcJYDAxXuY1ppBKMxTchHHquiYhkORTIsLySmxgVcDqw==';  
+const JWT_SECRET = process.env.JWT_SECRET || '';
+
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is not set');
+}
 
 export class AuthMiddleware {
-  // Middleware to verify admin token
+  // Middleware to verify owner token
   public static requireAuth(req: Request, res: Response, next: NextFunction): void {
     try {
       const token = req.headers.authorization?.replace('Bearer ', '');
@@ -12,7 +17,7 @@ export class AuthMiddleware {
       if (!token) {
         res.status(401).json({
           success: false,
-          error: 'Access token required. Please login as admin.'
+          error: 'Access token required. Please login.'
         });
         return;
       }
@@ -20,8 +25,9 @@ export class AuthMiddleware {
       // Verify JWT token
       const decoded = jwt.verify(token, JWT_SECRET) as any;
       
-      // FIX: Use type assertion instead of req.user
+      // Add user info to request
       (req as any).user = {
+        userId: decoded.userId,
         username: decoded.username,
         role: decoded.role,
         timestamp: decoded.timestamp
@@ -57,8 +63,8 @@ export class AuthMiddleware {
 
       if (token) {
         const decoded = jwt.verify(token, JWT_SECRET) as any;
-        // FIX: Use type assertion here too
         (req as any).user = {
+          userId: decoded.userId,
           username: decoded.username,
           role: decoded.role,
           timestamp: decoded.timestamp

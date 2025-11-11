@@ -30,8 +30,6 @@ app.use(cors({
     'https://sales-inventory-system-fawn.vercel.app',
     'http://localhost:3000',  
     'http://localhost:3001',  
-    // Add your production frontend URL here later:
-    // 'https://your-app.vercel.app',
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-pharmacy-id'],

@@ -62,6 +62,21 @@ export const initializeDatabase = async (): Promise<Pool> => {
 
 const createTables = async (): Promise<void> => {
   const tableDefinitions = [
+    // USERS TABLE - NEW AUTHENTICATION TABLE
+    `CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(50) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      recovery_code_hash VARCHAR(255) NOT NULL,
+      security_question_1 VARCHAR(255) NOT NULL,
+      security_answer_1_hash VARCHAR(255) NOT NULL,
+      security_question_2 VARCHAR(255) NOT NULL,
+      security_answer_2_hash VARCHAR(255) NOT NULL,
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+
     // PHARMACIES TABLE
     `CREATE TABLE IF NOT EXISTS pharmacies (
       id TEXT PRIMARY KEY,
@@ -166,6 +181,10 @@ const createTables = async (): Promise<void> => {
   ];
 
   const indexDefinitions = [
+    // Users indexes - NEW AUTHENTICATION INDEXES
+    'CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)',
+    'CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active)',
+    
     // Pharmacy indexes
     'CREATE INDEX IF NOT EXISTS idx_pharmacies_name ON pharmacies(name)',
     'CREATE INDEX IF NOT EXISTS idx_pharmacies_location ON pharmacies(location)',
@@ -225,6 +244,7 @@ const createTables = async (): Promise<void> => {
     }
     
     console.log('✅ All database tables and indexes created successfully');
+    console.log('🔐 Authentication system tables added');
   } catch (error) {
     console.error('❌ Error creating tables:', error);
     throw error;
