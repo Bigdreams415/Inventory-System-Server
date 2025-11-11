@@ -27,7 +27,7 @@ const PORT = process.env.PORT || 3001;
 
 app.use(cors({
   origin: [
-    'https://sales-inventory-system-fawn.vercel.app/',
+    'https://sales-inventory-system-fawn.vercel.app',
     'http://localhost:3000',  
     'http://localhost:3001',  
     // Add your production frontend URL here later:
