@@ -25,6 +25,21 @@ import pharmacyRoutes from './routes/pharmacyRoutes';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+app.use(cors({
+  origin: [
+    'https://sales-inventory-system-fawn.vercel.app/',
+    'http://localhost:3000',  
+    'http://localhost:3001',  
+    // Add your production frontend URL here later:
+    // 'https://your-app.vercel.app',
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-pharmacy-id'],
+}));
+
+
+
+
 app.use(helmet());
 app.use(cors());
 app.use(morgan('combined'));
