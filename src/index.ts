@@ -21,7 +21,8 @@ import servicesRoutes from './routes/services';
 import serviceSalesRoutes from './routes/serviceSales';
 import authRoutes from './routes/auth';
 import pharmacyRoutes from './routes/pharmacyRoutes';
-
+import gatekeeperRoutes from './routes/gatekeeper';
+import { GatekeeperController } from './controllers/GatekeeperController';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -39,7 +40,6 @@ app.use(cors({
 
 
 app.use(helmet());
-app.use(cors());
 app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -55,6 +55,9 @@ async function startServer() {
     await dbService.connect();
     console.log('Database connected successfully');
 
+    //initialize gatekeeper
+    GatekeeperController.initializeAccessCode();
+
     app.use('/api/pharmacies', pharmacyRoutes);
     app.use('/api/products', productRoutes);
     app.use('/api/sales', saleRoutes);
@@ -62,6 +65,7 @@ async function startServer() {
     app.use('/api/services', servicesRoutes);
     app.use('/api/service-sales', serviceSalesRoutes);
     app.use('/api/auth', authRoutes);
+    app.use('/api/gatekeeper', gatekeeperRoutes);
 
     app.get('/api/health', (_req, res) => {
       res.json({ 

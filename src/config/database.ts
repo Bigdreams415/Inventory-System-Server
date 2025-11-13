@@ -52,6 +52,7 @@ export const initializeDatabase = async (): Promise<Pool> => {
     // Create tables and default data
     await createTables();
     await createDefaultPharmacy();
+    await createDefaultAccessCode(); // ADDED: Initialize access code
 
     return pool;
   } catch (error) {
@@ -62,6 +63,17 @@ export const initializeDatabase = async (): Promise<Pool> => {
 
 const createTables = async (): Promise<void> => {
   const tableDefinitions = [
+    // SYSTEM SETTINGS TABLE - NEW TABLE FOR ACCESS CODE
+    `CREATE TABLE IF NOT EXISTS system_settings (
+      id SERIAL PRIMARY KEY,
+      setting_key VARCHAR(100) UNIQUE NOT NULL,
+      setting_value TEXT NOT NULL,
+      description TEXT,
+      updated_by INTEGER REFERENCES users(id),
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+
     // USERS TABLE - NEW AUTHENTICATION TABLE
     `CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -181,6 +193,10 @@ const createTables = async (): Promise<void> => {
   ];
 
   const indexDefinitions = [
+    // System settings indexes - NEW INDEXES
+    'CREATE INDEX IF NOT EXISTS idx_system_settings_key ON system_settings(setting_key)',
+    'CREATE INDEX IF NOT EXISTS idx_system_settings_updated_at ON system_settings(updated_at)',
+    
     // Users indexes - NEW AUTHENTICATION INDEXES
     'CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)',
     'CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active)',
@@ -245,6 +261,7 @@ const createTables = async (): Promise<void> => {
     
     console.log('✅ All database tables and indexes created successfully');
     console.log('🔐 Authentication system tables added');
+    console.log('🔑 System settings table added for access code management');
   } catch (error) {
     console.error('❌ Error creating tables:', error);
     throw error;
@@ -285,6 +302,38 @@ const createDefaultPharmacy = async (): Promise<void> => {
     }
   } catch (error) {
     console.error('❌ Error creating default pharmacy:', error);
+    throw error;
+  }
+};
+
+const createDefaultAccessCode = async (): Promise<void> => {
+  const defaultAccessCode = {
+    key: 'access_code',
+    value: 'PHARMACY2025',
+    description: 'Gatekeeper access code for site entry'
+  };
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO system_settings (setting_key, setting_value, description) 
+       VALUES ($1, $2, $3)
+       ON CONFLICT (setting_key) DO NOTHING`,
+      [
+        defaultAccessCode.key,
+        defaultAccessCode.value,
+        defaultAccessCode.description
+      ]
+    );
+
+    if (result.rowCount && result.rowCount > 0) {
+      console.log('🔐 Default access code created successfully');
+      console.log('📝 Access Code:', defaultAccessCode.value);
+      console.log('💡 Staff will need this code to enter the system');
+    } else {
+      console.log('📝 Access code already exists in system settings');
+    }
+  } catch (error) {
+    console.error('❌ Error creating default access code:', error);
     throw error;
   }
 };
