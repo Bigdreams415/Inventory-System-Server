@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { SaleController } from '../controllers/saleController';
 import { dbService } from '../models/database';
-import { AuthMiddleware } from '../middleware/authMiddleware';
+// import { AuthMiddleware } from '../middleware/authMiddleware';
 
 const router = Router();
 
@@ -11,7 +11,7 @@ const router = Router();
 router.post('/', SaleController.createSale);
 
 // GET /api/sales - Get all sales with pagination
-router.get('/', AuthMiddleware.requireAuth, SaleController.getSales);
+router.get('/', SaleController.getSales);
 
 // GET /api/sales/today - Get today's sales with summary
 router.get('/today', SaleController.getTodaySales);
@@ -28,7 +28,7 @@ router.post('/:id/refund', SaleController.refundSale);
 // ========== DEBUG ROUTES (PostgreSQL compatible) ==========
 
 // DEBUG: Check specific products by IDs
-router.get('/debug/check-products', AuthMiddleware.requireAuth, async (req, res) => {
+router.get('/debug/check-products', async (req, res) => {
   try {
     const { productIds } = req.query;
     
@@ -71,7 +71,7 @@ router.get('/debug/check-products', AuthMiddleware.requireAuth, async (req, res)
 });
 
 // DEBUG: Get all products (for comparison)
-router.get('/debug/all-products', AuthMiddleware.requireAuth, async (_req, res) => {
+router.get('/debug/all-products', async (_req, res) => {
   try {
     const products = await dbService.all(`
       SELECT id, name, stock, buy_price, sell_price, created_at 
@@ -93,7 +93,7 @@ router.get('/debug/all-products', AuthMiddleware.requireAuth, async (_req, res) 
 });
 
 // DEBUG: Check database schema (PostgreSQL version)
-router.get('/debug/schema', AuthMiddleware.requireAuth, async (_req, res) => {
+router.get('/debug/schema', async (_req, res) => {
   try {
     const tables = await dbService.all(`
       SELECT table_name as name 
@@ -116,7 +116,7 @@ router.get('/debug/schema', AuthMiddleware.requireAuth, async (_req, res) => {
 });
 
 // DEBUG: Check table structure for a specific table
-router.get('/debug/table-structure/:tableName', AuthMiddleware.requireAuth, async (req, res) => {
+router.get('/debug/table-structure/:tableName', async (req, res) => {
   try {
     const { tableName } = req.params;
     
