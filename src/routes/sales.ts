@@ -8,7 +8,7 @@ const router = Router();
 // ========== MAIN SALES ROUTES ==========
 
 // POST /api/sales - Create new sale
-router.post('/',AuthMiddleware.requireAuth, SaleController.createSale);
+router.post('/', SaleController.createSale);
   
 // GET /api/sales - Get all sales with pagination
 router.get('/', AuthMiddleware.requireAuth, SaleController.getSales);
@@ -23,7 +23,7 @@ router.get('/:id', AuthMiddleware.requireAuth, SaleController.getSaleById);
 router.get('/date-range', AuthMiddleware.requireAuth, SaleController.getSalesByDateRange);
 
 // POST /api/sales/:id/refund - Refund a sale
-router.post('/:id/refund', AuthMiddleware.requireAuth, SaleController.refundSale);
+router.post('/:id/refund', SaleController.refundSale);
 
 // ========== DEBUG ROUTES (PostgreSQL compatible) ==========
 
