@@ -22,6 +22,7 @@ import serviceSalesRoutes from './routes/serviceSales';
 import authRoutes from './routes/auth';
 import pharmacyRoutes from './routes/pharmacyRoutes';
 import gatekeeperRoutes from './routes/gatekeeper';
+import salesHistoryRoutes from './routes/salesHistory';
 import { GatekeeperController } from './controllers/GatekeeperController';
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -61,6 +62,7 @@ async function startServer() {
     app.use('/api/pharmacies', pharmacyRoutes);
     app.use('/api/products', productRoutes);
     app.use('/api/sales', saleRoutes);
+    app.use('/api/sales-history', salesHistoryRoutes);
     app.use('/api/dashboard', dashboardRoutes);
     app.use('/api/services', servicesRoutes);
     app.use('/api/service-sales', serviceSalesRoutes);
