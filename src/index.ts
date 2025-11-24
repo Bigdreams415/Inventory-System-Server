@@ -24,26 +24,103 @@ import pharmacyRoutes from './routes/pharmacyRoutes';
 import gatekeeperRoutes from './routes/gatekeeper';
 import salesHistoryRoutes from './routes/salesHistory';
 import { GatekeeperController } from './controllers/GatekeeperController';
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors({
-  origin: [
-    'https://sales-inventory-system-fawn.vercel.app',
-    'http://localhost:3000',  
-    'http://localhost:3001',  
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'https://sales-inventory-system-fawn.vercel.app',
+      'http://localhost:3000',  
+      'http://localhost:3001',
+      'https://sales-inventory-system-fawn.vercel.app/',
+      'http://localhost:3000/',
+      'http://localhost:3001/'
+    ];
+    
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      console.log('CORS blocked for origin:', origin);
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'x-pharmacy-id',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Access-Control-Request-Method',
+    'Access-Control-Request-Headers'
   ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-pharmacy-id'],
+  exposedHeaders: [
+    'Content-Range',
+    'X-Content-Range',
+    'Access-Control-Allow-Origin'
+  ],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
+  maxAge: 86400
 }));
 
+app.options('*', (req, res) => {
+  console.log('Preflight request received for:', req.url);
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD');
+  res.header('Access-Control-Allow-Headers', 
+    'Content-Type, Authorization, x-pharmacy-id, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400');
+  res.status(204).send();
+});
 
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  hsts: false
+}));
 
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'https://sales-inventory-system-fawn.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001'
+  ];
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD');
+  res.header('Access-Control-Allow-Headers', 
+    'Content-Type, Authorization, x-pharmacy-id, X-Requested-With, Accept, Origin');
+  
+  if (req.method === 'OPTIONS') {
+    console.log('CORS Preflight handled for:', req.url);
+  }
+  
+  next();
+});
 
-app.use(helmet());
 app.use(morgan('combined'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use('/api', PharmacyMiddleware.setPharmacyFromRequest);
 
@@ -56,7 +133,6 @@ async function startServer() {
     await dbService.connect();
     console.log('Database connected successfully');
 
-    //initialize gatekeeper
     GatekeeperController.initializeAccessCode();
 
     app.use('/api/pharmacies', pharmacyRoutes);
@@ -73,7 +149,13 @@ async function startServer() {
       res.json({ 
         success: true, 
         message: 'POS Server is running', 
-        timestamp: new Date().toISOString() 
+        timestamp: new Date().toISOString(),
+        cors: 'enabled',
+        origins: [
+          'https://sales-inventory-system-fawn.vercel.app',
+          'http://localhost:3000',
+          'http://localhost:3001'
+        ]
       });
     });
 
@@ -82,6 +164,7 @@ async function startServer() {
         success: true,
         message: 'POS Inventory System API',
         version: '1.0.0',
+        cors: 'enabled',
         endpoints: {
           products: '/api/products',
           sales: '/api/sales',
@@ -125,14 +208,14 @@ async function startServer() {
     });
 
     app.listen(PORT, () => {
-      console.log(`POS Server running on http://localhost:${PORT}`);
-      console.log(`Health check: http://localhost:${PORT}/api/health`);
-      console.log(`API Base: http://localhost:${PORT}/api`);
-      console.log(`Current pharmacy: http://localhost:${PORT}/api/pharmacy/current`);
-      console.log(`All pharmacies: http://localhost:${PORT}/api/pharmacy/all`);
-      console.log(`Pharmacy CRUD: http://localhost:${PORT}/api/pharmacies`);
-      console.log(`Services: http://localhost:${PORT}/api/services`);
-      console.log(`Service Sales: http://localhost:${PORT}/api/service-sales`);
+      console.log('POS Server running on http://localhost:' + PORT);
+      console.log('CORS Configuration: Enabled');
+      console.log('Allowed Origins:');
+      console.log('   - https://sales-inventory-system-fawn.vercel.app');
+      console.log('   - http://localhost:3000');
+      console.log('   - http://localhost:3001');
+      console.log('Health check: http://localhost:' + PORT + '/api/health');
+      console.log('API Base: http://localhost:' + PORT + '/api');
     });
   } catch (error) {
     console.error('Failed to start server:', error);
