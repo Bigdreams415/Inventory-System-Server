@@ -299,80 +299,53 @@ export class SaleController {
     }
   }
 
-  // NEW: Get sales by date range for current pharmacy
-  public static async getSalesByDateRange(req: Request, res: Response): Promise<void> {
+  //  Simple endpoint to get sales by specific date
+  public static async getSalesBySpecificDate(req: Request, res: Response): Promise<void> {
     try {
       const pharmacyId = req.pharmacyId!;
-      const { startDate, endDate } = req.query;
+      const { date } = req.query;
 
-      console.log('🔍 DEBUG getSalesByDateRange called:', {
-        pharmacyId,
-        startDate,
-        endDate
-      });
+      console.log('🆕 getSalesBySpecificDate called:', { pharmacyId, date });
 
-      if (!startDate || !endDate) {
+      if (!date) {
         res.status(400).json({
           success: false,
-          error: 'Start date and end date are required'
+          error: 'Date parameter is required'
         });
         return;
       }
 
-      // First, check if there are any sales in this date range with a simple query
-      const testSales = await dbService.all<any>(`
-        SELECT id, created_at 
-        FROM sales 
-        WHERE pharmacy_id = $1 AND DATE(created_at) BETWEEN $2 AND $3
-        LIMIT 1
-      `, [pharmacyId, startDate, endDate]);
-
-      console.log('🔍 Test query found sales:', testSales.length);
-
-      if (testSales.length === 0) {
-        // ✅ FIX: Return empty array instead of error
-        console.log('📭 No sales found in date range, returning empty array');
-        res.json({
-          success: true,
-          data: []
-        });
-        return;
-      }
-
-      // If sales exist, run the full query
-      const sales = await dbService.all<Sale & { sale_items: any[] }>(`
-        SELECT 
-          s.*,
-          COALESCE(
-            JSON_AGG(
-              JSON_BUILD_OBJECT(
-                'id', si.id,
-                'product_id', si.product_id,
-                'quantity', si.quantity,
-                'unit_sell_price', si.unit_sell_price,
-                'unit_buy_price', si.unit_buy_price,
-                'total_sell_price', si.total_sell_price,
-                'item_profit', si.item_profit,
-                'product_name', p.name
-              )
-            ) FILTER (WHERE si.id IS NOT NULL),
-            '[]'
-          ) as sale_items
+      // Simple query - no complex JSON aggregation
+      const sales = await dbService.all<Sale>(`
+        SELECT s.* 
         FROM sales s
-        LEFT JOIN sale_items si ON s.id = si.sale_id AND si.pharmacy_id = $1
-        LEFT JOIN products p ON si.product_id = p.id AND p.pharmacy_id = $2
-        WHERE s.pharmacy_id = $3 AND DATE(s.created_at) BETWEEN $4 AND $5
-        GROUP BY s.id
+        WHERE s.pharmacy_id = $1 AND DATE(s.created_at) = $2
         ORDER BY s.created_at DESC
-      `, [pharmacyId, pharmacyId, pharmacyId, startDate, endDate]);
+      `, [pharmacyId, date]);
 
-      console.log('🔍 Full query found:', sales.length, 'sales');
+      console.log('✅ Found sales for date:', sales.length);
 
-      // Parse the sale_items JSON
-      const salesWithItems = sales.map(sale => ({
-        ...sale,
-        items: sale.sale_items || []
-      }));
+      // Get items for each sale
+      const salesWithItems = await Promise.all(
+        sales.map(async (sale) => {
+          const items = await dbService.all<SaleItem & { product_name: string }>(`
+            SELECT 
+              si.*,
+              p.name as product_name
+            FROM sale_items si 
+            LEFT JOIN products p ON si.product_id = p.id
+            WHERE si.sale_id = $1 AND si.pharmacy_id = $2
+          `, [sale.id, pharmacyId]);
+
+          return {
+            ...sale,
+            items: items.map(item => ({
+              ...item,
+              product_name: item.product_name
+            }))
+          };
+        })
+      );
 
       res.json({
         success: true,
@@ -380,10 +353,10 @@ export class SaleController {
       });
 
     } catch (error) {
-      console.error('❌ Error in getSalesByDateRange:', error);
+      console.error('❌ Error in getSalesBySpecificDate:', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch sales by date range'
+        error: 'Failed to fetch sales by date'
       });
     }
   }
