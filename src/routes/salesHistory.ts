@@ -4,8 +4,6 @@ import { SaleController } from '../controllers/saleController';
 
 const router = Router();
 
-// ========== MAIN SALES ROUTES ==========
-
 // POST /api/sales - Create new sale
 router.post('/', SaleController.createSale);
   
@@ -17,9 +15,6 @@ router.get('/today', SaleController.getTodaySales);
 
 // GET /api/sales/:id - Get sale by ID with items
 router.get('/:id', SaleController.getSaleById);
-
-// GET /api/sales/date-range - Get sales by date range
-router.get('/date-range', SaleController.getSalesByDateRange);
 
 // POST /api/sales/:id/refund - Refund a sale
 router.post('/:id/refund', SaleController.refundSale);
