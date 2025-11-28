@@ -305,7 +305,7 @@ export class SaleController {
       const pharmacyId = req.pharmacyId!;
       const { startDate, endDate } = req.query;
 
-      console.log('🔍 DEBUG getSalesByDateRange:', {
+      console.log('🔍 DEBUG getSalesByDateRange called:', {
         pharmacyId,
         startDate,
         endDate
@@ -319,19 +319,19 @@ export class SaleController {
         return;
       }
 
-      // First, let's test if there are any sales in this date range with a simple query
-      const testQuery = await dbService.all<any>(`
-        SELECT id, created_at, total_amount 
+      // First, check if there are any sales in this date range with a simple query
+      const testSales = await dbService.all<any>(`
+        SELECT id, created_at 
         FROM sales 
         WHERE pharmacy_id = $1 AND DATE(created_at) BETWEEN $2 AND $3
-        LIMIT 5
+        LIMIT 1
       `, [pharmacyId, startDate, endDate]);
 
-      console.log('🔍 Test query results:', testQuery);
+      console.log('🔍 Test query found sales:', testSales.length);
 
-      if (testQuery.length === 0) {
-        // No sales found in date range - return empty array
-        console.log('📭 No sales found in date range');
+      if (testSales.length === 0) {
+        // ✅ FIX: Return empty array instead of error
+        console.log('📭 No sales found in date range, returning empty array');
         res.json({
           success: true,
           data: []
@@ -339,9 +339,7 @@ export class SaleController {
         return;
       }
 
-      // If we found sales, try the complex query
-      console.log('🔍 Found sales, running full query...');
-      
+      // If sales exist, run the full query
       const sales = await dbService.all<Sale & { sale_items: any[] }>(`
         SELECT 
           s.*,
@@ -385,7 +383,7 @@ export class SaleController {
       console.error('❌ Error in getSalesByDateRange:', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch sales by date range: ' + (error instanceof Error ? error.message : 'Unknown error')
+        error: 'Failed to fetch sales by date range'
       });
     }
   }
