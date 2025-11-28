@@ -305,6 +305,12 @@ export class SaleController {
       const pharmacyId = req.pharmacyId!;
       const { startDate, endDate } = req.query;
 
+      console.log('🔍 DEBUG getSalesByDateRange:', {
+        pharmacyId,
+        startDate,
+        endDate
+      });
+
       if (!startDate || !endDate) {
         res.status(400).json({
           success: false,
@@ -313,20 +319,46 @@ export class SaleController {
         return;
       }
 
+      // First, let's test if there are any sales in this date range with a simple query
+      const testQuery = await dbService.all<any>(`
+        SELECT id, created_at, total_amount 
+        FROM sales 
+        WHERE pharmacy_id = $1 AND DATE(created_at) BETWEEN $2 AND $3
+        LIMIT 5
+      `, [pharmacyId, startDate, endDate]);
+
+      console.log('🔍 Test query results:', testQuery);
+
+      if (testQuery.length === 0) {
+        // No sales found in date range - return empty array
+        console.log('📭 No sales found in date range');
+        res.json({
+          success: true,
+          data: []
+        });
+        return;
+      }
+
+      // If we found sales, try the complex query
+      console.log('🔍 Found sales, running full query...');
+      
       const sales = await dbService.all<Sale & { sale_items: any[] }>(`
         SELECT 
           s.*,
-          JSON_AGG(
-            JSON_BUILD_OBJECT(
-              'id', si.id,
-              'product_id', si.product_id,
-              'quantity', si.quantity,
-              'unit_sell_price', si.unit_sell_price,
-              'unit_buy_price', si.unit_buy_price,
-              'total_sell_price', si.total_sell_price,
-              'item_profit', si.item_profit,
-              'product_name', p.name
-            )
+          COALESCE(
+            JSON_AGG(
+              JSON_BUILD_OBJECT(
+                'id', si.id,
+                'product_id', si.product_id,
+                'quantity', si.quantity,
+                'unit_sell_price', si.unit_sell_price,
+                'unit_buy_price', si.unit_buy_price,
+                'total_sell_price', si.total_sell_price,
+                'item_profit', si.item_profit,
+                'product_name', p.name
+              )
+            ) FILTER (WHERE si.id IS NOT NULL),
+            '[]'
           ) as sale_items
         FROM sales s
         LEFT JOIN sale_items si ON s.id = si.sale_id AND si.pharmacy_id = $1
@@ -335,6 +367,8 @@ export class SaleController {
         GROUP BY s.id
         ORDER BY s.created_at DESC
       `, [pharmacyId, pharmacyId, pharmacyId, startDate, endDate]);
+
+      console.log('🔍 Full query found:', sales.length, 'sales');
 
       // Parse the sale_items JSON
       const salesWithItems = sales.map(sale => ({
@@ -346,11 +380,12 @@ export class SaleController {
         success: true,
         data: salesWithItems
       });
+
     } catch (error) {
-      console.error('Error fetching sales by date range:', error);
+      console.error('❌ Error in getSalesByDateRange:', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch sales by date range'
+        error: 'Failed to fetch sales by date range: ' + (error instanceof Error ? error.message : 'Unknown error')
       });
     }
   }
