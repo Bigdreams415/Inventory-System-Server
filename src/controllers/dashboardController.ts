@@ -49,11 +49,11 @@ export class DashboardController {
         WHERE pharmacy_id = $1
       `, [pharmacyId]);
 
-      // 4. Low stock count (stock <= 10)
+      // 4. Low stock count (stock <= 20)
       const lowStock = await dbService.get<{ low_stock_count: number }>(`
         SELECT COUNT(*) as low_stock_count 
         FROM products 
-        WHERE stock <= 10 AND pharmacy_id = $1
+        WHERE stock <= 20 AND pharmacy_id = $1
       `, [pharmacyId]);
 
       // 5. NEW: Get total stock worth (using buy price)
@@ -289,7 +289,6 @@ export class DashboardController {
         FROM products 
         WHERE stock <= $1 AND pharmacy_id = $2
         ORDER BY stock ASC
-        LIMIT 10
       `, [threshold, pharmacyId]);
 
       const response = lowStockProducts.map(product => ({
