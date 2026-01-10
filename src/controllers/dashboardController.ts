@@ -268,7 +268,7 @@ export class DashboardController {
   // Get low stock products
   public static async getLowStockProducts(req: Request, res: Response): Promise<void> {
     try {
-      const threshold = parseInt(req.query.threshold as string) || 10;
+      const threshold = parseInt(req.query.threshold as string) || 20;
       const pharmacyId = req.pharmacyId!;
       
       console.log(`⚠️ Fetching low stock products (stock <= ${threshold}) for pharmacy ${pharmacyId}...`);
