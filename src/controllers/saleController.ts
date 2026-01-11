@@ -303,27 +303,54 @@ export class SaleController {
   public static async getSalesBySpecificDate(req: Request, res: Response): Promise<void> {
     try {
       const pharmacyId = req.pharmacyId!;
-      const { date } = req.query;
+      const { date, startDate, endDate } = req.query;
 
-      console.log('🆕 getSalesBySpecificDate called:', { pharmacyId, date });
+      console.log('🆕 getSalesBySpecificDate called:', { pharmacyId, date, startDate, endDate });
 
-      if (!date) {
+      // Handle date range filtering
+      let query: string;
+      let params: any[];
+
+      if (startDate && endDate) {
+        // Date range query
+        console.log('📅 Using date range:', { startDate, endDate });
+        
+        query = `
+          SELECT s.* 
+          FROM sales s
+          WHERE s.pharmacy_id = $1 
+            AND s.created_at >= $2::date 
+            AND s.created_at < ($3::date + INTERVAL '1 day')
+          ORDER BY s.created_at DESC
+        `;
+        params = [pharmacyId, startDate, endDate];
+        
+      } else if (date) {
+        // Single date query - using range to avoid timezone issues
+        console.log('📅 Using single date:', date);
+        
+        query = `
+          SELECT s.* 
+          FROM sales s
+          WHERE s.pharmacy_id = $1 
+            AND s.created_at >= $2::date 
+            AND s.created_at < ($2::date + INTERVAL '1 day')
+          ORDER BY s.created_at DESC
+        `;
+        params = [pharmacyId, date];
+        
+      } else {
         res.status(400).json({
           success: false,
-          error: 'Date parameter is required'
+          error: 'Date parameter or date range (startDate and endDate) is required'
         });
         return;
       }
 
-      // Simple query - no complex JSON aggregation
-      const sales = await dbService.all<Sale>(`
-        SELECT s.* 
-        FROM sales s
-        WHERE s.pharmacy_id = $1 AND DATE(s.created_at) = $2
-        ORDER BY s.created_at DESC
-      `, [pharmacyId, date]);
+      // Execute query
+      const sales = await dbService.all<Sale>(query, params);
 
-      console.log('✅ Found sales for date:', sales.length);
+      console.log('✅ Found sales:', sales.length);
 
       // Get items for each sale
       const salesWithItems = await Promise.all(
@@ -333,9 +360,9 @@ export class SaleController {
               si.*,
               p.name as product_name
             FROM sale_items si 
-            LEFT JOIN products p ON si.product_id = p.id
-            WHERE si.sale_id = $1 AND si.pharmacy_id = $2
-          `, [sale.id, pharmacyId]);
+            LEFT JOIN products p ON si.product_id = p.id AND p.pharmacy_id = $1
+            WHERE si.sale_id = $2 AND si.pharmacy_id = $3
+          `, [pharmacyId, sale.id, pharmacyId]);
 
           return {
             ...sale,
@@ -347,9 +374,18 @@ export class SaleController {
         })
       );
 
+      // Calculate summary stats
+      const summary = {
+        totalSales: salesWithItems.length,
+        totalAmount: salesWithItems.reduce((sum, sale) => sum + Number(sale.total_amount), 0),
+        totalProfit: salesWithItems.reduce((sum, sale) => sum + Number(sale.total_profit), 0)
+      };
+
       res.json({
         success: true,
-        data: salesWithItems
+        data: salesWithItems,
+        summary,
+        period: startDate && endDate ? { startDate, endDate } : { date }
       });
 
     } catch (error) {
@@ -360,6 +396,7 @@ export class SaleController {
       });
     }
   }
+
 
   // NEW: Refund a sale (soft delete)
   public static async refundSale(req: Request, res: Response): Promise<void> {
